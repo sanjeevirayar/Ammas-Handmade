@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server/src/index.js",
-    "postinstall": "npm --prefix server install && npm run build"
+    "hostinger-build": "npm --prefix server ci && vite build"
   },
   "dependencies": {
     "lucide-react": "^1.47.0",
