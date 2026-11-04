@@ -3,14 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "start": "node server/src/index.js",
-    "hostinger-build": "npm --prefix server ci && vite build"
-  },
+"scripts": {
+  "dev": "vite",
+  "build": "vite build --outDir server/dist",
+  "lint": "eslint .",
+  "preview": "vite preview",
+  "start": "node server/src/index.js",
+  "hostinger-build": "npm --prefix server ci && npm run build"
+},
   "dependencies": {
     "lucide-react": "^1.47.0",
     "react": "^19.2.8",

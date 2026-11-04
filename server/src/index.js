@@ -78,7 +78,7 @@ const PORT =
 const frontendDistPath =
     path.resolve(
         __dirname,
-        "../../dist"
+        "../dist"
     );
 
 
