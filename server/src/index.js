@@ -20,16 +20,9 @@ import {
 } from "./controllers/webhookController.js";
 
 
-dotenv.config();
-
-
-const app =
-    express();
-
-
-const PORT =
-    process.env.PORT ||
-    3001;
+/* =====================================================
+   FILE / DIRECTORY PATHS
+===================================================== */
 
 const __filename =
     fileURLToPath(
@@ -41,17 +34,69 @@ const __dirname =
         __filename
     );
 
+
+/* =====================================================
+   ENVIRONMENT VARIABLES
+
+   Local:
+   server/.env
+
+   Production:
+   Hostinger environment variables remain available
+   through process.env.
+===================================================== */
+
+dotenv.config({
+    path: path.resolve(
+        __dirname,
+        "../.env"
+    ),
+});
+
+
+/* =====================================================
+   EXPRESS APP
+===================================================== */
+
+const app =
+    express();
+
+
+const PORT =
+    process.env.PORT ||
+    3001;
+
+
+/* =====================================================
+   FRONTEND BUILD PATH
+
+   server/src/index.js
+   → ../../dist
+   → project-root/dist
+===================================================== */
+
 const frontendDistPath =
     path.resolve(
         __dirname,
         "../../dist"
     );
 
+
 /* =====================================================
    DATABASE
 ===================================================== */
 
 connectDB();
+
+
+/* =====================================================
+   RAZORPAY WEBHOOK
+
+   IMPORTANT:
+   This MUST remain before express.json()
+   because Razorpay signature verification needs
+   the original raw request body.
+===================================================== */
 
 app.post(
     "/api/webhooks/razorpay",
@@ -64,8 +109,9 @@ app.post(
     handleRazorpayWebhook
 );
 
+
 /* =====================================================
-   MIDDLEWARE
+   JSON MIDDLEWARE
 ===================================================== */
 
 app.use(
@@ -113,13 +159,19 @@ app.use(
     orderRoutes
 );
 
+
+/* =====================================================
+   PAYMENT ROUTES
+===================================================== */
+
 app.use(
     "/api/payments",
     paymentRoutes
 );
 
+
 /* =====================================================
-   SERVE REACT FRONTEND
+   SERVE REACT PRODUCTION BUILD
 ===================================================== */
 
 app.use(
@@ -132,8 +184,16 @@ app.use(
 /* =====================================================
    REACT ROUTER FALLBACK
 
-   Any normal GET request that is not /api/*
-   should return React's index.html.
+   Requests such as:
+
+   /
+   /shop
+   /collections
+   /product/example-product
+
+   are handled by React.
+
+   /api/* requests are NEVER redirected to React.
 ===================================================== */
 
 app.use(
@@ -159,18 +219,44 @@ app.use(
     }
 );
 
+
+/* =====================================================
+   API 404
+
+   Keeps invalid API requests from accidentally
+   returning the React frontend.
+===================================================== */
+
+app.use(
+    "/api",
+
+    (req, res) => {
+
+        return res
+            .status(404)
+            .json({
+                message:
+                    "API route not found.",
+            });
+
+    }
+);
+
+
 /* =====================================================
    START SERVER
+
+   Do NOT force 127.0.0.1 here.
+   Hostinger provides the production networking.
 ===================================================== */
 
 app.listen(
     PORT,
-    "127.0.0.1",
 
     () => {
 
         console.log(
-            `Backend running at http://127.0.0.1:${PORT}`
+            `Backend running on port ${PORT}`
         );
 
     }

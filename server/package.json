@@ -4,14 +4,11 @@
   "description": "Backend API for Amma's Handmade",
   "main": "src/index.js",
   "type": "module",
-"scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "lint": "eslint .",
-  "preview": "vite preview",
-  "start": "node server/src/index.js",
-  "postinstall": "npm --prefix server install && npm run build"
-},
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "seed": "node src/scripts/seedProducts.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
