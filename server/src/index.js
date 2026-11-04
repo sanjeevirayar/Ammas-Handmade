@@ -19,6 +19,12 @@ import {
     handleRazorpayWebhook
 } from "./controllers/webhookController.js";
 
+import adminAuthRoutes
+    from "./routes/adminAuthRoutes.js";
+
+import adminOrderRoutes
+    from "./routes/adminOrderRoutes.js";
+
 
 /* =====================================================
    FILE / DIRECTORY PATHS
@@ -218,7 +224,14 @@ app.use(
 
     }
 );
-
+app.use(
+    "/api/admin/auth",
+    adminAuthRoutes
+);
+app.use(
+    "/api/admin/orders",
+    adminOrderRoutes
+);
 
 /* =====================================================
    API 404

@@ -22,6 +22,9 @@ import {
     WishlistProvider
 } from "./context/WishlistContext";
 
+import {
+    AdminAuthProvider
+} from "./context/AdminAuthContext.jsx";
 
 import "./index.css";
 
@@ -44,8 +47,11 @@ createRoot(
                 <CartProvider>
 
                     <WishlistProvider>
+                        <AdminAuthProvider>
 
                         <App />
+                        
+                        </AdminAuthProvider>
 
                     </WishlistProvider>
 

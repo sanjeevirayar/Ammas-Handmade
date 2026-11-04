@@ -24,7 +24,11 @@ import LearnWithAmma from "./pages/LearnWithAmma";
 import Contact from "./pages/Contact";
 import FAQ from "./pages/FAQ";
 import Checkout from "./pages/Checkout";
+import AdminLogin
+    from "./pages/AdminLogin";
 
+import AdminDashboard
+    from "./pages/AdminDashboard";
 
 
 function App() {
@@ -100,6 +104,19 @@ function App() {
                 <Route path="/contact" element={<Contact />} />
 
                 <Route path="/faq" element={<FAQ />} />
+                <Route
+                    path="/admin/login"
+                    element={
+                        <AdminLogin />
+                    }
+                />
+
+                <Route
+                    path="/admin"
+                    element={
+                        <AdminDashboard />
+                    }
+                />
 
             </Routes>
 
