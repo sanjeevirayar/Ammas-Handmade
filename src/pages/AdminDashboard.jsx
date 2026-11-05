@@ -27,6 +27,20 @@ const ORDER_STATUSES = [
 ];
 
 
+const ORDER_PROGRESS_STATUSES = [
+    "pending",
+    "confirmed",
+    "making",
+    "ready",
+    "shipped",
+    "delivered",
+];
+
+
+/* =====================================================
+   FORMAT MONEY
+===================================================== */
+
 function formatMoney(
     minorUnits,
     currency = "INR"
@@ -53,6 +67,10 @@ function formatMoney(
 
 }
 
+
+/* =====================================================
+   FORMAT DATE
+===================================================== */
 
 function formatDate(
     value
@@ -83,6 +101,10 @@ function formatDate(
 }
 
 
+/* =====================================================
+   STATUS LABEL
+===================================================== */
+
 function statusLabel(
     value
 ) {
@@ -101,6 +123,264 @@ function statusLabel(
 
 }
 
+
+/* =====================================================
+   EMAIL STATUS LABEL
+===================================================== */
+
+function emailStatusLabel(
+    value
+) {
+
+    switch (
+        value
+    ) {
+
+        case "sent":
+            return "Email sent";
+
+        case "failed":
+            return "Email failed";
+
+        case "sending":
+            return "Sending email...";
+
+        case "pending":
+            return "Email pending";
+
+        default:
+            return "";
+
+    }
+
+}
+
+
+/* =====================================================
+   GET LATEST HISTORY ENTRY FOR STATUS
+===================================================== */
+
+function getLatestHistoryEntry(
+    order,
+    status
+) {
+
+    const history =
+        Array.isArray(
+            order?.statusHistory
+        )
+            ? order.statusHistory
+            : [];
+
+
+    for (
+        let index =
+            history.length - 1;
+        index >= 0;
+        index -= 1
+    ) {
+
+        if (
+            history[index]
+                ?.status ===
+            status
+        ) {
+
+            return history[index];
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =====================================================
+   BUILD ORDER TIMELINE
+===================================================== */
+
+function buildOrderTimeline(
+    order
+) {
+
+    if (!order) {
+
+        return [];
+
+    }
+
+
+    const currentStatus =
+        order.orderStatus ||
+        "pending";
+
+
+    const currentIndex =
+        ORDER_PROGRESS_STATUSES
+            .indexOf(
+                currentStatus
+            );
+
+
+    const isCancelled =
+        currentStatus ===
+        "cancelled";
+
+
+    const timeline =
+        ORDER_PROGRESS_STATUSES
+            .map(
+                (
+                    status,
+                    index
+                ) => {
+
+                    const historyEntry =
+                        getLatestHistoryEntry(
+                            order,
+                            status
+                        );
+
+
+                    const changedAt =
+                        historyEntry
+                            ?.changedAt ||
+                        (
+                            status ===
+                            "pending"
+                                ? order.createdAt
+                                : null
+                        );
+
+
+                    const reached =
+                        Boolean(
+                            historyEntry
+                        ) ||
+                        (
+                            !isCancelled &&
+                            currentIndex >=
+                            index
+                        ) ||
+                        status ===
+                        "pending";
+
+
+                    return {
+                        status,
+
+                        reached,
+
+                        isCurrent:
+                            currentStatus ===
+                            status,
+
+                        changedAt,
+
+                        changedBy:
+                            historyEntry
+                                ?.changedBy ||
+                            null,
+
+                        source:
+                            historyEntry
+                                ?.source ||
+                            null,
+
+                        emailStatus:
+                            historyEntry
+                                ?.emailStatus ||
+                            "not_required",
+
+                        emailSentAt:
+                            historyEntry
+                                ?.emailSentAt ||
+                            null,
+
+                        emailMessageId:
+                            historyEntry
+                                ?.emailMessageId ||
+                            null,
+
+                        emailLastError:
+                            historyEntry
+                                ?.emailLastError ||
+                            null,
+                    };
+
+                }
+            );
+
+
+    if (isCancelled) {
+
+        const cancelledEntry =
+            getLatestHistoryEntry(
+                order,
+                "cancelled"
+            );
+
+
+        timeline.push({
+            status:
+                "cancelled",
+
+            reached:
+                true,
+
+            isCurrent:
+                true,
+
+            changedAt:
+                cancelledEntry
+                    ?.changedAt ||
+                null,
+
+            changedBy:
+                cancelledEntry
+                    ?.changedBy ||
+                null,
+
+            source:
+                cancelledEntry
+                    ?.source ||
+                null,
+
+            emailStatus:
+                cancelledEntry
+                    ?.emailStatus ||
+                "not_required",
+
+            emailSentAt:
+                cancelledEntry
+                    ?.emailSentAt ||
+                null,
+
+            emailMessageId:
+                cancelledEntry
+                    ?.emailMessageId ||
+                null,
+
+            emailLastError:
+                cancelledEntry
+                    ?.emailLastError ||
+                null,
+        });
+
+    }
+
+
+    return timeline;
+
+}
+
+
+/* =====================================================
+   ADMIN DASHBOARD
+===================================================== */
 
 export default function AdminDashboard() {
 
@@ -139,6 +419,13 @@ export default function AdminDashboard() {
     const [
         search,
         setSearch
+    ] =
+        useState("");
+
+
+    const [
+        appliedSearch,
+        setAppliedSearch
     ] =
         useState("");
 
@@ -183,6 +470,10 @@ export default function AdminDashboard() {
         });
 
 
+    /* =================================================
+       LOAD ORDERS
+    ================================================= */
+
     const loadOrders =
         useCallback(
             async (
@@ -220,12 +511,12 @@ export default function AdminDashboard() {
 
 
                     if (
-                        search.trim()
+                        appliedSearch
                     ) {
 
                         params.set(
                             "search",
-                            search.trim()
+                            appliedSearch
                         );
 
                     }
@@ -324,13 +615,17 @@ export default function AdminDashboard() {
             },
             [
                 token,
-                search,
+                appliedSearch,
                 orderStatus,
                 paymentStatus,
                 logout
             ]
         );
 
+
+    /* =================================================
+       LOAD WHEN FILTERS CHANGE
+    ================================================= */
 
     useEffect(
         () => {
@@ -348,11 +643,14 @@ export default function AdminDashboard() {
         },
         [
             isAuthenticated,
-            orderStatus,
-            paymentStatus
+            loadOrders
         ]
     );
 
+
+    /* =================================================
+       DASHBOARD STATS
+    ================================================= */
 
     const dashboardStats =
         useMemo(
@@ -400,19 +698,42 @@ export default function AdminDashboard() {
         );
 
 
+    /* =================================================
+       SELECTED ORDER TIMELINE
+    ================================================= */
+
+    const selectedOrderTimeline =
+        useMemo(
+            () =>
+                buildOrderTimeline(
+                    selectedOrder
+                ),
+            [selectedOrder]
+        );
+
+
+    /* =================================================
+       SEARCH
+    ================================================= */
+
     const handleSearchSubmit =
-        async (
+        (
             event
         ) => {
 
             event.preventDefault();
 
-            await loadOrders(
-                1
+
+            setAppliedSearch(
+                search.trim()
             );
 
         };
 
+
+    /* =================================================
+       OPEN ORDER
+    ================================================= */
 
     const openOrder =
         async (
@@ -476,6 +797,10 @@ export default function AdminDashboard() {
 
         };
 
+
+    /* =================================================
+       UPDATE ORDER STATUS
+    ================================================= */
 
     const updateOrderStatus =
         async (
@@ -542,6 +867,16 @@ export default function AdminDashboard() {
                 }
 
 
+                /*
+                   Backend returns the full updated
+                   order including statusHistory and
+                   status-email information.
+                */
+
+                const updatedOrder =
+                    data.order;
+
+
                 setOrders(
                     (currentOrders) =>
                         currentOrders.map(
@@ -557,12 +892,13 @@ export default function AdminDashboard() {
                                 }
 
 
-                                return {
-                                    ...order,
+                                return updatedOrder ||
+                                    {
+                                        ...order,
 
-                                    orderStatus:
-                                        nextStatus,
-                                };
+                                        orderStatus:
+                                            nextStatus,
+                                    };
 
                             }
                         )
@@ -583,12 +919,13 @@ export default function AdminDashboard() {
                         }
 
 
-                        return {
-                            ...currentOrder,
+                        return updatedOrder ||
+                            {
+                                ...currentOrder,
 
-                            orderStatus:
-                                nextStatus,
-                        };
+                                orderStatus:
+                                    nextStatus,
+                            };
 
                     }
                 );
@@ -610,6 +947,10 @@ export default function AdminDashboard() {
         };
 
 
+    /* =================================================
+       AUTH LOADING
+    ================================================= */
+
     if (authLoading) {
 
         return (
@@ -625,6 +966,10 @@ export default function AdminDashboard() {
     }
 
 
+    /* =================================================
+       NOT AUTHENTICATED
+    ================================================= */
+
     if (!isAuthenticated) {
 
         return (
@@ -639,9 +984,17 @@ export default function AdminDashboard() {
     }
 
 
+    /* =================================================
+       RENDER
+    ================================================= */
+
     return (
 
         <main className="admin-dashboard">
+
+            {/* =========================================
+                HEADER
+            ========================================== */}
 
             <header className="admin-header">
 
@@ -674,6 +1027,10 @@ export default function AdminDashboard() {
 
             </header>
 
+
+            {/* =========================================
+                STATS
+            ========================================== */}
 
             <section className="admin-stat-grid">
 
@@ -730,6 +1087,10 @@ export default function AdminDashboard() {
 
             </section>
 
+
+            {/* =========================================
+                ORDERS
+            ========================================== */}
 
             <section className="admin-orders-section">
 
@@ -1119,6 +1480,10 @@ export default function AdminDashboard() {
                 }
 
 
+                {/* =====================================
+                    PAGINATION
+                ====================================== */}
+
                 <div className="admin-pagination">
 
                     <button
@@ -1172,6 +1537,10 @@ export default function AdminDashboard() {
             </section>
 
 
+            {/* =========================================
+                ORDER DETAIL DRAWER
+            ========================================== */}
+
             {
                 selectedOrder &&
                 (
@@ -1196,6 +1565,10 @@ export default function AdminDashboard() {
                                         .stopPropagation()
                             }
                         >
+
+                            {/* =================================
+                                PANEL HEADER
+                            ================================== */}
 
                             <div className="admin-order-panel-header">
 
@@ -1230,6 +1603,10 @@ export default function AdminDashboard() {
 
                             </div>
 
+
+                            {/* =================================
+                                CURRENT STATUS
+                            ================================== */}
 
                             <div className="admin-detail-section">
 
@@ -1291,6 +1668,209 @@ export default function AdminDashboard() {
                             </div>
 
 
+                            {/* =================================
+                                ORDER PROGRESS TIMELINE
+                            ================================== */}
+
+                            <div className="admin-detail-section">
+
+                                <h3>
+                                    Order progress
+                                </h3>
+
+
+                                <div className="admin-order-timeline">
+
+                                    {
+                                        selectedOrderTimeline
+                                            .map(
+                                                (
+                                                    step,
+                                                    index
+                                                ) => (
+
+                                                    <div
+                                                        className={
+                                                            `admin-timeline-step ${
+                                                                step.reached
+                                                                    ? "is-reached"
+                                                                    : "is-pending"
+                                                            } ${
+                                                                step.isCurrent
+                                                                    ? "is-current"
+                                                                    : ""
+                                                            } ${
+                                                                step.status ===
+                                                                "cancelled"
+                                                                    ? "is-cancelled"
+                                                                    : ""
+                                                            }`
+                                                        }
+                                                        key={
+                                                            step.status
+                                                        }
+                                                    >
+
+                                                        <div className="admin-timeline-rail">
+
+                                                            <span className="admin-timeline-dot">
+                                                                {
+                                                                    step.reached
+                                                                        ? "✓"
+                                                                        : ""
+                                                                }
+                                                            </span>
+
+
+                                                            {
+                                                                index <
+                                                                selectedOrderTimeline.length -
+                                                                1 &&
+                                                                (
+                                                                    <span className="admin-timeline-line" />
+                                                                )
+                                                            }
+
+                                                        </div>
+
+
+                                                        <div className="admin-timeline-content">
+
+                                                            <div className="admin-timeline-title-row">
+
+                                                                <strong>
+                                                                    {
+                                                                        statusLabel(
+                                                                            step.status
+                                                                        )
+                                                                    }
+                                                                </strong>
+
+
+                                                                {
+                                                                    step.isCurrent &&
+                                                                    (
+
+                                                                        <span className="admin-timeline-current">
+                                                                            Current
+                                                                        </span>
+
+                                                                    )
+                                                                }
+
+                                                            </div>
+
+
+                                                            <span className="admin-timeline-date">
+
+                                                                {
+                                                                    step.changedAt
+                                                                        ? formatDate(
+                                                                            step.changedAt
+                                                                        )
+                                                                        : step.reached
+                                                                            ? "No timestamp recorded"
+                                                                            : "Not reached yet"
+                                                                }
+
+                                                            </span>
+
+
+                                                            {
+                                                                step.changedBy &&
+                                                                (
+
+                                                                    <span className="admin-timeline-meta">
+                                                                        Updated by{" "}
+                                                                        {step.changedBy}
+                                                                    </span>
+
+                                                                )
+                                                            }
+
+
+                                                            {
+                                                                step.emailStatus &&
+                                                                step.emailStatus !==
+                                                                "not_required" &&
+                                                                (
+
+                                                                    <div
+                                                                        className={
+                                                                            `admin-timeline-email admin-timeline-email-${step.emailStatus}`
+                                                                        }
+                                                                    >
+
+                                                                        <span className="admin-timeline-email-badge">
+
+                                                                            {
+                                                                                emailStatusLabel(
+                                                                                    step.emailStatus
+                                                                                )
+                                                                            }
+
+                                                                        </span>
+
+
+                                                                        {
+                                                                            step.emailStatus ===
+                                                                            "sent" &&
+                                                                            step.emailSentAt &&
+                                                                            (
+
+                                                                                <span className="admin-timeline-email-detail">
+
+                                                                                    {
+                                                                                        formatDate(
+                                                                                            step.emailSentAt
+                                                                                        )
+                                                                                    }
+
+                                                                                </span>
+
+                                                                            )
+                                                                        }
+
+
+                                                                        {
+                                                                            step.emailStatus ===
+                                                                            "failed" &&
+                                                                            step.emailLastError &&
+                                                                            (
+
+                                                                                <span className="admin-timeline-email-error">
+
+                                                                                    {
+                                                                                        step.emailLastError
+                                                                                    }
+
+                                                                                </span>
+
+                                                                            )
+                                                                        }
+
+                                                                    </div>
+
+                                                                )
+                                                            }
+
+                                                        </div>
+
+                                                    </div>
+
+                                                )
+                                            )
+                                    }
+
+                                </div>
+
+                            </div>
+
+
+                            {/* =================================
+                                CUSTOMER
+                            ================================== */}
+
                             <div className="admin-detail-section">
 
                                 <h3>
@@ -1330,6 +1910,10 @@ export default function AdminDashboard() {
                             </div>
 
 
+                            {/* =================================
+                                ADDRESS
+                            ================================== */}
+
                             <div className="admin-detail-section">
 
                                 <h3>
@@ -1349,6 +1933,7 @@ export default function AdminDashboard() {
                                         .shippingAddress
                                         ?.addressLine2 &&
                                     (
+
                                         <p>
                                             {
                                                 selectedOrder
@@ -1356,6 +1941,7 @@ export default function AdminDashboard() {
                                                     .addressLine2
                                             }
                                         </p>
+
                                     )
                                 }
 
@@ -1389,6 +1975,10 @@ export default function AdminDashboard() {
 
                             </div>
 
+
+                            {/* =================================
+                                ITEMS
+                            ================================== */}
 
                             <div className="admin-detail-section">
 
@@ -1454,6 +2044,10 @@ export default function AdminDashboard() {
                             </div>
 
 
+                            {/* =================================
+                                TOTAL
+                            ================================== */}
+
                             <div className="admin-detail-section admin-order-total">
 
                                 <span>
@@ -1472,6 +2066,10 @@ export default function AdminDashboard() {
                             </div>
 
 
+                            {/* =================================
+                                PAYMENT
+                            ================================== */}
+
                             <div className="admin-detail-section">
 
                                 <h3>
@@ -1481,6 +2079,7 @@ export default function AdminDashboard() {
                                 <p>
                                     Status:
                                     {" "}
+
                                     <strong>
                                         {
                                             statusLabel(
@@ -1491,9 +2090,11 @@ export default function AdminDashboard() {
                                     </strong>
                                 </p>
 
+
                                 <p>
                                     Razorpay Payment ID:
                                     {" "}
+
                                     {
                                         selectedOrder
                                             .razorpayPaymentId ||
@@ -1501,9 +2102,11 @@ export default function AdminDashboard() {
                                     }
                                 </p>
 
+
                                 <p>
                                     Placed:
                                     {" "}
+
                                     {
                                         formatDate(
                                             selectedOrder

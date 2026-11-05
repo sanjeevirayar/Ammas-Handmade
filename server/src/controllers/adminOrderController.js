@@ -1,15 +1,12 @@
 import Order from "../models/Order.js";
 
+import {
+    setOrderStatus
+} from "../services/orderStatusService.js";
 
-const ALLOWED_ORDER_STATUSES = [
-    "pending",
-    "confirmed",
-    "making",
-    "ready",
-    "shipped",
-    "delivered",
-    "cancelled",
-];
+import {
+    sendOrderStatusUpdateOnce
+} from "../services/orderStatusEmailService.js";
 
 
 /* =====================================================
@@ -86,6 +83,7 @@ export const getAdminOrders =
                         orderNumber: {
                             $regex:
                                 search,
+
                             $options:
                                 "i",
                         },
@@ -95,6 +93,7 @@ export const getAdminOrders =
                         "customer.firstName": {
                             $regex:
                                 search,
+
                             $options:
                                 "i",
                         },
@@ -104,6 +103,7 @@ export const getAdminOrders =
                         "customer.lastName": {
                             $regex:
                                 search,
+
                             $options:
                                 "i",
                         },
@@ -113,6 +113,7 @@ export const getAdminOrders =
                         "customer.email": {
                             $regex:
                                 search,
+
                             $options:
                                 "i",
                         },
@@ -122,6 +123,7 @@ export const getAdminOrders =
                         "customer.phone": {
                             $regex:
                                 search,
+
                             $options:
                                 "i",
                         },
@@ -282,22 +284,25 @@ export const updateAdminOrderStatus =
             } = req.body;
 
 
-            if (
-                !ALLOWED_ORDER_STATUSES
-                    .includes(
-                        orderStatus
-                    )
-            ) {
+            /* =================================================
+               VALIDATE REQUEST
+            ================================================= */
+
+            if (!orderStatus) {
 
                 return res
                     .status(400)
                     .json({
                         message:
-                            "Invalid order status.",
+                            "Order status is required.",
                     });
 
             }
 
+
+            /* =================================================
+               FIND ORDER
+            ================================================= */
 
             const order =
                 await Order.findById(
@@ -317,19 +322,202 @@ export const updateAdminOrderStatus =
             }
 
 
-            order.orderStatus =
-                orderStatus;
+            /* =================================================
+               UPDATE STATUS + CREATE HISTORY ENTRY
+            ================================================= */
 
+            const result =
+                setOrderStatus(
+                    order,
+                    orderStatus,
+                    {
+                        changedBy:
+                            req.admin?.email ||
+                            "admin",
+
+                        source:
+                            "admin",
+                    }
+                );
+
+
+            /* =================================================
+               SAME STATUS
+
+               Example:
+
+               making -> making
+
+               No new status event.
+               No email.
+            ================================================= */
+
+            if (
+                !result.changed
+            ) {
+
+                return res.json({
+
+                    message:
+                        "Order is already using this status.",
+
+                    order,
+
+                    email: {
+                        sent:
+                            false,
+
+                        skipped:
+                            true,
+
+                        reason:
+                            "status_not_changed",
+                    },
+
+                });
+
+            }
+
+
+            /* =================================================
+               SAVE STATUS FIRST
+
+               This is important.
+
+               Even if email sending later fails,
+               the order status must remain updated.
+            ================================================= */
 
             await order.save();
 
 
+            /* =================================================
+               SEND CUSTOMER STATUS EMAIL
+
+               Only statuses such as:
+
+               making
+               ready
+               shipped
+               delivered
+               cancelled
+
+               have emailStatus = "pending".
+
+               pending / confirmed do not use this
+               status-update email flow.
+            ================================================= */
+
+            let emailResult = {
+
+                sent:
+                    false,
+
+                skipped:
+                    true,
+
+                reason:
+                    "email_not_required",
+
+            };
+
+
+            if (
+                result.historyEntry
+                    ?.emailStatus ===
+                "pending"
+            ) {
+
+                try {
+
+                    emailResult =
+                        await sendOrderStatusUpdateOnce({
+                            orderId:
+                                order._id,
+
+                            status:
+                                orderStatus,
+
+                            changedAt:
+                                result
+                                    .historyEntry
+                                    .changedAt,
+                        });
+
+                } catch (
+                    emailError
+                ) {
+
+                    /*
+                       Important:
+
+                       Email failure must NEVER make
+                       the order-status update fail.
+                    */
+
+                    console.error(
+                        "Order status email processing error:",
+                        emailError
+                    );
+
+
+                    emailResult = {
+
+                        sent:
+                            false,
+
+                        failed:
+                            true,
+
+                        error:
+                            emailError
+                                ?.message ||
+                            "Unable to process status email.",
+
+                    };
+
+                }
+
+            }
+
+
+            /* =================================================
+               RELOAD ORDER
+
+               The email service may have changed:
+
+               emailStatus
+               emailSentAt
+               emailMessageId
+               emailLastError
+
+               Fetch the latest copy so the admin
+               frontend receives the newest data.
+            ================================================= */
+
+            const updatedOrder =
+                await Order.findById(
+                    order._id
+                );
+
+
+            /* =================================================
+               RESPONSE
+            ================================================= */
+
             return res.json({
 
                 message:
-                    "Order status updated.",
+                    emailResult.sent
+                        ? "Order status updated and customer notified."
+                        : "Order status updated successfully.",
 
-                order,
+                order:
+                    updatedOrder ||
+                    order,
+
+                email:
+                    emailResult,
 
             });
 
@@ -339,6 +527,46 @@ export const updateAdminOrderStatus =
                 "Update admin order status error:",
                 error
             );
+
+
+            /* =================================================
+               INVALID STATUS
+            ================================================= */
+
+            if (
+                error.message?.startsWith(
+                    "Invalid order status:"
+                )
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            error.message,
+                    });
+
+            }
+
+
+            /* =================================================
+               INVALID SOURCE
+            ================================================= */
+
+            if (
+                error.message?.startsWith(
+                    "Invalid order status source:"
+                )
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            error.message,
+                    });
+
+            }
 
 
             return res

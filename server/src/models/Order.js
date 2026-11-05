@@ -176,6 +176,127 @@ const shippingAddressSchema =
 
 
 /* =====================================================
+   ORDER STATUS HISTORY
+===================================================== */
+
+const orderStatusHistorySchema =
+    new mongoose.Schema(
+        {
+            status: {
+                type: String,
+
+                required: true,
+
+                enum: [
+                    "pending",
+                    "confirmed",
+                    "making",
+                    "ready",
+                    "shipped",
+                    "delivered",
+                    "cancelled"
+                ],
+            },
+
+
+            changedAt: {
+                type: Date,
+
+                required: true,
+
+                default: Date.now,
+            },
+
+
+            changedBy: {
+                type: String,
+
+                required: true,
+
+                default: "system",
+
+                trim: true,
+            },
+
+
+            source: {
+                type: String,
+
+                required: true,
+
+                enum: [
+                    "order_created",
+                    "payment_verified",
+                    "razorpay_webhook",
+                    "admin"
+                ],
+            },
+
+
+            /* =================================================
+               STATUS UPDATE EMAIL
+
+               Each status change can track the result
+               of its own customer update email.
+
+               "not_required"
+               means that particular status does not
+               require a status-update email.
+
+               For example:
+               - pending
+               - confirmed
+
+               Confirmed already uses our separate
+               order-confirmation email flow.
+            ================================================= */
+
+            emailStatus: {
+                type: String,
+
+                enum: [
+                    "not_required",
+                    "pending",
+                    "sending",
+                    "sent",
+                    "failed"
+                ],
+
+                default:
+                    "not_required",
+            },
+
+
+            emailSentAt: {
+                type: Date,
+
+                default:
+                    null,
+            },
+
+
+            emailMessageId: {
+                type: String,
+
+                default:
+                    null,
+            },
+
+
+            emailLastError: {
+                type: String,
+
+                default:
+                    null,
+            },
+        },
+        {
+            _id: false,
+        }
+    );
+
+
+/* =====================================================
    ORDER
 ===================================================== */
 
@@ -341,6 +462,19 @@ const orderSchema =
 
 
             /* =================================================
+               ORDER STATUS HISTORY
+            ================================================= */
+
+            statusHistory: {
+                type: [
+                    orderStatusHistorySchema
+                ],
+
+                default: [],
+            },
+
+
+            /* =================================================
                RAZORPAY
             ================================================= */
 
@@ -376,9 +510,16 @@ const orderSchema =
                 type: Boolean,
                 default: false,
             },
+
+
             /* =================================================
-   ORDER CONFIRMATION EMAIL
-================================================= */
+               ORDER CONFIRMATION EMAIL
+
+               This is separate from status-update emails.
+
+               It is used specifically for the initial
+               successful-payment confirmation email.
+            ================================================= */
 
             confirmationEmailStatus: {
                 type: String,
@@ -411,6 +552,7 @@ const orderSchema =
             timestamps: true,
         }
     );
+
 
 /* =====================================================
    MODEL

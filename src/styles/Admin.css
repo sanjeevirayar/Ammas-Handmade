@@ -537,3 +537,293 @@
     }
 
 }
+/* =====================================================
+   ORDER STATUS TIMELINE
+===================================================== */
+
+.admin-order-timeline {
+    margin-top: 18px;
+}
+
+
+.admin-timeline-step {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 12px;
+    min-height: 76px;
+}
+
+
+.admin-timeline-rail {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+
+.admin-timeline-dot {
+    position: relative;
+    z-index: 2;
+
+    width: 28px;
+    height: 28px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    border: 2px solid #d8d1c8;
+
+    background: #ffffff;
+
+    color: #ffffff;
+
+    font-size: 13px;
+    font-weight: 700;
+}
+
+
+.admin-timeline-line {
+    width: 2px;
+    flex: 1;
+
+    min-height: 44px;
+
+    background: #e4ded6;
+}
+
+
+.admin-timeline-step.is-reached
+.admin-timeline-dot {
+    background: #7c8b6f;
+    border-color: #7c8b6f;
+}
+
+
+.admin-timeline-step.is-reached
+.admin-timeline-line {
+    background: #aeb8a5;
+}
+
+
+.admin-timeline-step.is-current
+.admin-timeline-dot {
+    box-shadow:
+        0 0 0 5px
+        rgba(124, 139, 111, 0.16);
+}
+
+
+.admin-timeline-step.is-cancelled
+.admin-timeline-dot {
+    background: #b76558;
+    border-color: #b76558;
+}
+
+
+.admin-timeline-step.is-cancelled
+.admin-timeline-line {
+    background: #d4a49c;
+}
+
+
+.admin-timeline-content {
+    padding-bottom: 24px;
+}
+
+
+.admin-timeline-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    margin-bottom: 4px;
+}
+
+
+.admin-timeline-title-row strong {
+    color: #332f2b;
+    font-size: 14px;
+}
+
+
+.admin-timeline-current {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 3px 8px;
+
+    border-radius: 999px;
+
+    background: #eef1eb;
+
+    color: #68765e;
+
+    font-size: 10px;
+    font-weight: 700;
+
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+
+.admin-timeline-step.is-cancelled
+.admin-timeline-current {
+    background: #f7e9e6;
+    color: #9d5146;
+}
+
+
+.admin-timeline-date {
+    display: block;
+
+    color: #77716b;
+
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+
+.admin-timeline-meta {
+    display: block;
+
+    margin-top: 3px;
+
+    color: #a19a93;
+
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+
+.admin-timeline-step.is-pending
+.admin-timeline-title-row strong {
+    color: #99938c;
+}
+
+
+.admin-timeline-step.is-pending
+.admin-timeline-date {
+    color: #aaa49e;
+}
+
+/* =====================================================
+   TIMELINE EMAIL STATUS
+===================================================== */
+
+.admin-timeline-email {
+    margin-top: 9px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+    gap: 4px;
+}
+
+
+.admin-timeline-email-badge {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 4px 9px;
+
+    border-radius: 999px;
+
+    font-size: 11px;
+    font-weight: 700;
+
+    letter-spacing: 0.02em;
+}
+
+
+/* SENT */
+
+.admin-timeline-email-sent
+.admin-timeline-email-badge {
+    background: #edf3e9;
+    color: #617357;
+}
+
+
+.admin-timeline-email-sent
+.admin-timeline-email-badge::before {
+    content: "✓";
+
+    margin-right: 5px;
+}
+
+
+/* PENDING */
+
+.admin-timeline-email-pending
+.admin-timeline-email-badge {
+    background: #f4efe6;
+    color: #8b765a;
+}
+
+
+.admin-timeline-email-pending
+.admin-timeline-email-badge::before {
+    content: "•";
+
+    margin-right: 5px;
+}
+
+
+/* SENDING */
+
+.admin-timeline-email-sending
+.admin-timeline-email-badge {
+    background: #edf0f3;
+    color: #67727c;
+}
+
+
+.admin-timeline-email-sending
+.admin-timeline-email-badge::before {
+    content: "↗";
+
+    margin-right: 5px;
+}
+
+
+/* FAILED */
+
+.admin-timeline-email-failed
+.admin-timeline-email-badge {
+    background: #f7e9e6;
+    color: #9d5146;
+}
+
+
+.admin-timeline-email-failed
+.admin-timeline-email-badge::before {
+    content: "×";
+
+    margin-right: 5px;
+}
+
+
+/* DETAILS */
+
+.admin-timeline-email-detail {
+    color: #969088;
+
+    font-size: 11px;
+}
+
+
+.admin-timeline-email-error {
+    max-width: 100%;
+
+    color: #9d5146;
+
+    font-size: 11px;
+    line-height: 1.5;
+
+    overflow-wrap: anywhere;
+}
